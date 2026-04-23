@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Analítico | Portal de Futebol</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            background-color: #f8f9fa; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+        }
+        .header-jogo { 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+            color: white; 
+            padding: 40px 0; 
+            border-bottom: 5px solid #ffcc00;
+        }
+        .card-custom { 
+            border: none; 
+            border-radius: 12px; 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.05); 
+            transition: transform 0.2s;
+        }
+        .card-custom:hover { transform: translateY(-5px); }
+        .stat-number { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+        .stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #6c757d; font-weight: 600; }
+        .text-casa { color: #0d6efd; } /* Azul Bootstrap */
+        .text-fora { color: #dc3545; } /* Vermelho Bootstrap */
+    </style>
+</head>
+<body>
+
+    <div class="header-jogo text-center mb-5">
+        <div class="container">
+            <p class="text-uppercase fw-bold mb-2 text-white-50" id="infoRodada">Carregando dados...</p>
+            <div class="row align-items-center justify-content-center">
+                <div class="col-4 col-md-3 text-end">
+                    <h4 class="fw-bold mb-2" id="nomeCasa">---</h4>
+                    <img id="escudoCasa" src="" width="90" height="90" class="img-fluid" onerror="this.src='https://via.placeholder.com/90?text=CASA'">
+                </div>
+                <div class="col-4 col-md-2 text-center">
+                    <h1 class="display-2 fw-bolder mb-0" id="placarFinal">- : -</h1>
+                </div>
+                <div class="col-4 col-md-3 text-start">
+                    <h4 class="fw-bold mb-2" id="nomeFora">---</h4>
+                    <img id="escudoFora" src="" width="90" height="90" class="img-fluid" onerror="this.src='https://via.placeholder.com/90?text=FORA'">
+                </div>
+            </div>
+            <p class="mt-3 mb-0" id="dataJogo">---</p>
+        </div>
+    </div>
+
+    <div class="container pb-5">
+        
+        <div class="row mb-4" id="cardsDestaques">
+            </div>
+
+        <div class="row">
+            
+            <div class="col-lg-6 mb-4">
+                <div class="card card-custom h-100 p-4">
+                    <h5 class="fw-bold text-center mb-4">Radar de Pressão Ofensiva</h5>
+                    <p class="text-muted text-center small mb-3">Valores normalizados (0-100) para indicar qual time dominou cada área do ataque.</p>
+                    <div style="position: relative; height:400px; width:100%">
+                        <canvas id="graficoRadar"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 mb-4">
+                <div class="card card-custom h-100 p-4">
+                    <h5 class="fw-bold text-center mb-4">Comparativo Defensivo e Disciplinar</h5>
+                    <div style="position: relative; height:400px; width:100%">
+                        <canvas id="graficoBarras"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 1. Lê o ID da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const matchId = urlParams.get('id');
+
+        async function carregarDashboard() {
+            if (!matchId) {
+                document.body.innerHTML = '<div class="container mt-5 text-center"><h2>Jogo não especificado.</h2><a href="FrontEnd.html" class="btn btn-primary mt-3">Voltar</a></div>';
+                return;
+            }
+
+            try {
+                // 2. Busca os dados da API Python
+                const resposta = await fetch('http://127.0.0.1:8000/api/jogos');
+                const json = await resposta.json();
+                
+                // 3. Encontra o jogo específico
+                const jogo = json.dados.find(j => String(j.Match_ID) === String(matchId));
+
+                if (!jogo) {
+                    alert("Jogo não encontrado na base de dados.");
+                    return;
+                }
+
+                // 4. Preenche as informações do Cabeçalho
+                document.getElementById('infoRodada').innerText = `RODADA ${jogo.Rodada || jogo.Rodada_Fase || '---'}`;
+                document.getElementById('dataJogo').innerText = jogo.Data;
+                document.getElementById('nomeCasa').innerText = jogo.Time_Casa;
+                document.getElementById('nomeFora').innerText = jogo.Time_Fora;
+                document.getElementById('placarFinal').innerText = `${jogo.Gols_Casa ?? '?'} : ${jogo.Gols_Fora ?? '?'}`;
+                document.getElementById('escudoCasa').src = `http://127.0.0.1:8000/escudos/${jogo.ID_Casa}.png`;
+                document.getElementById('escudoFora').src = `http://127.0.0.1:8000/escudos/${jogo.ID_Fora}.png`;
+
+                // Função auxiliar para limpar e garantir números
+                const parseNum = (val) => {
+                    if (val === null || val === undefined) return 0;
+                    return parseFloat(String(val).replace('%', '')) || 0;
+                };
+
+                // Coletando os dados
+                const posseCasa = parseNum(jogo['Ball possession_Casa']);
+                const posseFora = parseNum(jogo['Ball possession_Fora']);
+                const chutesCasa = parseNum(jogo['Total shots_Casa']);
+                const chutesFora = parseNum(jogo['Total shots_Fora']);
+                const chutesAlvoCasa = parseNum(jogo['Shots on target_Casa']);
+                const chutesAlvoFora = parseNum(jogo['Shots on target_Fora']);
+                const passesCasa = parseNum(jogo['Accurate passes_Casa']);
+                const passesFora = parseNum(jogo['Accurate passes_Fora']);
+                const faltasCasa = parseNum(jogo['Fouls_Casa']);
+                const faltasFora = parseNum(jogo['Fouls_Fora']);
+                const desarmesCasa = parseNum(jogo['Total tackles_Casa']);
+                const desarmesFora = parseNum(jogo['Total tackles_Fora']);
+                // Se a coluna "Touches in penalty area" não existir, usa 0
+                const toquesCasa = parseNum(jogo['Touches in penalty area_Casa']);
+                const toquesFora = parseNum(jogo['Touches in penalty area_Fora']);
+                const chancesCasa = parseNum(jogo['Big chances_Casa']);
+                const chancesFora = parseNum(jogo['Big chances_Fora']);
+
+                // 5. Gera os Cards de Destaque
+                const containerCards = document.getElementById('cardsDestaques');
+                const criarCard = (titulo, valCasa, valFora) => `
+                    <div class="col-md-4 mb-3">
+                        <div class="card card-custom p-3 text-center h-100">
+                            <div class="stat-label mb-2">${titulo}</div>
+                            <div class="d-flex justify-content-around align-items-center">
+                                <div class="text-casa stat-number">${valCasa}</div>
+                                <div class="text-muted fw-bold">x</div>
+                                <div class="text-fora stat-number">${valFora}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                containerCards.innerHTML = 
+                    criarCard('Posse de Bola (%)', posseCasa, posseFora) +
+                    criarCard('Passes Certos', passesCasa, passesFora) +
+                    criarCard('Desarmes (Tackles)', desarmesCasa, desarmesFora);
+
+                // --- CONFIGURAÇÕES CHART.JS ---
+                const corCasa = 'rgba(13, 110, 253, 0.7)'; // Azul
+                const corCasaBorda = 'rgba(13, 110, 253, 1)';
+                const corFora = 'rgba(220, 53, 69, 0.7)'; // Vermelho
+                const corForaBorda = 'rgba(220, 53, 69, 1)';
+
+                // -------------------------------------------------------------
+                // 👉 AQUI ESTÁ A NOVA LÓGICA DO RADAR DE ATAQUE (NORMALIZADO)
+                // -------------------------------------------------------------
+                
+                // Função para normalizar (escala 0 a 100)
+                const normalizar = (valC, valF) => {
+                    const total = valC + valF;
+                    if (total === 0) return [50, 50]; 
+                    return [ (valC / total) * 100, (valF / total) * 100 ];
+                };
+
+                const [nChutesC, nChutesF] = normalizar(chutesCasa, chutesFora);
+                const [nAlvoC, nAlvoF] = normalizar(chutesAlvoCasa, chutesAlvoFora);
+                const [nChancesC, nChancesF] = normalizar(chancesCasa, chancesFora);
+                const [nToquesC, nToquesF] = normalizar(toquesCasa, toquesFora);
+                const [nPosseC, nPosseF] = [posseCasa, posseFora]; // A posse já é uma % natural (se baseada em 100)
+
+                const ctxRadar = document.getElementById('graficoRadar').getContext('2d');
+                new Chart(ctxRadar, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Chutes Totais', 'Chutes no Alvo', 'Grandes Chances', 'Toques na Área', 'Posse de Bola'],
+                        datasets: [
+                            {
+                                label: jogo.Time_Casa,
+                                data: [nChutesC, nAlvoC, nChancesC, nToquesC, nPosseC],
+                                backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                                borderColor: corCasaBorda,
+                                borderWidth: 2,
+                                pointBackgroundColor: corCasaBorda
+                            },
+                            {
+                                label: jogo.Time_Fora,
+                                data: [nChutesF, nAlvoF, nChancesF, nToquesF, nPosseF],
+                                backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                                borderColor: corForaBorda,
+                                borderWidth: 2,
+                                pointBackgroundColor: corForaBorda
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                min: 0,
+                                max: 100,
+                                ticks: { display: false } // Esconde os números do eixo para ficar limpo
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    // Adiciona o % ao final do número no tooltip
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + Math.round(context.raw) + '% de dominância';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // -------------------------------------------------------------
+                // 7. Criando o Gráfico de Barras (Focado na Defesa/Disciplina)
+                // -------------------------------------------------------------
+                const ctxBarras = document.getElementById('graficoBarras').getContext('2d');
+                new Chart(ctxBarras, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Desarmes', 'Faltas Cometidas', 'Cartões Amarelos', 'Impedimentos'],
+                        datasets: [
+                            {
+                                label: jogo.Time_Casa,
+                                data: [desarmesCasa, faltasCasa, parseNum(jogo['Yellow cards_Casa']), parseNum(jogo['Offsides_Casa'])],
+                                backgroundColor: corCasa,
+                                borderRadius: 5
+                            },
+                            {
+                                label: jogo.Time_Fora,
+                                data: [desarmesFora, faltasFora, parseNum(jogo['Yellow cards_Fora']), parseNum(jogo['Offsides_Fora'])],
+                                backgroundColor: corFora,
+                                borderRadius: 5
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+
+            } catch (erro) {
+                console.error("Erro ao montar dashboard:", erro);
+                alert("Erro ao conectar com a API Python.");
+            }
+        }
+
+        carregarDashboard();
+    </script>
+</body>
+</html>
