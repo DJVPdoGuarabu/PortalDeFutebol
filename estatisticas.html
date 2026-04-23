@@ -94,7 +94,7 @@
 
             try {
                 // 2. Busca os dados da API Python
-                const resposta = await fetch('http://127.0.0.1:8000/api/jogos');
+                const resposta = await fetch('https://api-portal-futebol.onrender.com/api/jogos');
                 const json = await resposta.json();
                 
                 // 3. Encontra o jogo específico
@@ -111,8 +111,8 @@
                 document.getElementById('nomeCasa').innerText = jogo.Time_Casa;
                 document.getElementById('nomeFora').innerText = jogo.Time_Fora;
                 document.getElementById('placarFinal').innerText = `${jogo.Gols_Casa ?? '?'} : ${jogo.Gols_Fora ?? '?'}`;
-                document.getElementById('escudoCasa').src = `http://127.0.0.1:8000/escudos/${jogo.ID_Casa}.png`;
-                document.getElementById('escudoFora').src = `http://127.0.0.1:8000/escudos/${jogo.ID_Fora}.png`;
+                document.getElementById('escudoCasa').src = `https://api-portal-futebol.onrender.com/escudos/${jogo.ID_Casa}.png`;
+                document.getElementById('escudoFora').src = `https://api-portal-futebol.onrender.com/escudos/${jogo.ID_Fora}.png`;
 
                 // Função auxiliar para limpar e garantir números
                 const parseNum = (val) => {
