@@ -114,7 +114,7 @@
             }
 
             try {
-                const resposta = await fetch(`https://portaldefutebol.onrender.com/api/jogos`);
+                const resposta = await fetch(`https://portaldefutebol.onrender.com/api/jogos/${matchId}`);
                 const json = await resposta.json();
                 const jogo = json.dados.find(j => String(j.Match_ID) === String(matchId));
 
