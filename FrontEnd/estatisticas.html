@@ -132,8 +132,8 @@
                 document.getElementById('nomeCasa').innerText = jogo.Time_Casa;
                 document.getElementById('nomeFora').innerText = jogo.Time_Fora;
                 document.getElementById('placarFinal').innerText = `${jogo.Gols_Casa ?? '?'} : ${jogo.Gols_Fora ?? '?'}`;
-                document.getElementById('escudoCasa').src = `${API_URL}/escudos/${jogo.ID_Casa}.png`;
-                document.getElementById('escudoFora').src = `${API_URL}/escudos/${jogo.ID_Fora}.png`;
+                document.getElementById('escudoCasa').src = `https://portaldefutebol.onrender.com/escudos/${jogo.ID_Casa}.png`;
+                document.getElementById('escudoFora').src = `https://portaldefutebol.onrender.com/escudos/${jogo.ID_Fora}.png`;
 
                 const parseNum = (val) => {
                     if (val === null || val === undefined) return 0;
