@@ -6,6 +6,11 @@
     <title>Portal Scout - Futebol</title>
     <meta name="referrer" content="no-referrer">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap/dist/css/jsvectormap.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsvectormap/dist/maps/world.js"></script>
+
     <style>
         body { 
             background-color: #f0f2f5; 
@@ -171,22 +176,50 @@
         <p class="lead mb-0" id="statusConexao">Estatísticas e Resultados em Tempo Real</p>
     </div>
 
-    <!-- TELA 1: ESCOLHA DE CAMPEONATO -->
-    <div id="tela-campeonatos" class="container text-center mt-5">
-        <h2 class="mb-4 fw-bold text-secondary">Selecione o Campeonato</h2>
-        <!-- Os botões vão aparecer aqui dentro magicamente pelo JS -->
-        <div id="botoes-campeonatos" class="d-flex justify-content-center gap-4 flex-wrap">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando...</span>
-            </div>
-            <span class="text-muted ms-2 mt-1">Carregando base de dados...</span>
-        </div>
-    </div>
-
-    <!-- TELA 2: FASES, RODADAS E JOGOS (Inicia escondida) -->
-    <div id="tela-rodadas" class="container" style="display: none;">
+    <div id="tela-campeonatos" class="container mt-5 mb-5">
         
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="row align-items-center">
+            
+            <div class="col-lg-6 mb-5 mb-lg-0 text-center">
+                <h2 class="mb-4 fw-bold text-secondary">Selecione o Campeonato</h2>
+                <div id="botoes-campeonatos" class="d-flex justify-content-center gap-4 flex-wrap">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <span class="text-muted ms-2 mt-1">Carregando base de dados...</span>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0" style="border-radius: 20px; background-color: #ffffff; padding: 25px;">
+                    <h4 class="text-center fw-bold mb-3" style="color: #1e3c72;">Exploração Geográfica</h4>
+                
+                    <ul class="nav nav-pills justify-content-center mb-3" id="pills-tab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold btn-sm" id="tab-nacional" data-bs-toggle="pill" data-bs-target="#paisa-nacional" type="button">Ligas Nacionais</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold btn-sm ms-2" id="tab-continental" data-bs-toggle="pill" data-bs-target="#mapa-continentes" type="button">Continentais</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="pills-tabContent">
+                        <div class="tab-pane fade show active" id="paisa-nacional" role="tabpanel">
+                            <div id="mapa-mundi" style="width: 100%; height: 380px; background-color: #f8f9fa; border-radius: 10px; border: 1px solid #dee2e6;"></div>
+                        </div>
+                    
+                        <div class="tab-pane fade" id="mapa-continentes" role="tabpanel">
+                            <div id="mapa-continental" style="width: 100%; height: 380px; background-color: #f8f9fa; border-radius: 10px; border: 1px solid #dee2e6;"></div>
+                        </div>
+                    </div>
+                
+                    <p id="resultado-mapa" class="text-center mt-3 mb-0 fw-bold text-primary" style="min-height: 24px;">Escolha uma região no mapa...</p>
+                </div>
+            </div>
+
+        </div> </div> <div id="tela-rodadas" class="container" style="display: none;">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4 mt-5">
             <button class="btn btn-outline-dark" onclick="voltarParaCampeonatos()">⬅ Voltar aos Campeonatos</button>
             <h2 id="titulo-campeonato" class="fw-bold text-primary mb-0">Nome do Campeonato</h2>
         </div>
@@ -203,6 +236,7 @@
         </div>
         
         <div id="vitrine-jogos"></div>
+        
     </div>
 
     <script>
@@ -210,32 +244,49 @@
         let todosOsJogosGlobais = [];
         let jogosDoCampeonatoAtual = [];
 
+        const ligasPorPais = {
+            "BR": "Brasileirão",
+            "GB": "Premier League",
+            // "ES": "La Liga",  
+            // "FR": "Ligue 1"
+        };
+
+        const paisesComDados = Object.keys(ligasPorPais);
+
+        const competicoesContinentais = {
+            // Adicionei os principais países da UEFA para acender a Europa:
+            "Champions League": ["GB", "ES", "FR", "IT", "DE", "PT", "NL", "BE", "CH", "AT", "DK", "SE", "NO", "PL", "TR", "GR", "CZ", "UA", "HR", "RS"],
+            
+            // Exemplo de como você vai fazer no futuro com a Libertadores:
+            // "Copa Libertadores": ["BR", "AR", "UY", "CL", "CO", "PE", "EC", "PY", "BO", "VE"]
+        };
+
+        // Mágica: Junta todos os países de todas as competições continentais para acender no mapa 2
+        let paisesContinentaisComDados = [];
+        Object.values(competicoesContinentais).forEach(listaDePaises => {
+            paisesContinentaisComDados.push(...listaDePaises);
+        });
+
         // --- A MÁGICA DEFINITIVA DA ORDENAÇÃO ---
         function calcularPesoFase(texto) {
             if (!texto) return 999;
             const valor = String(texto).toLowerCase().trim();
 
-            // 1. SE FOR APENAS NÚMERO PURO (Ex: "1", "16", "38") da Premier League
             if (/^\d+$/.test(valor)) {
                 return parseInt(valor); 
             }
 
-            // 2. SE FOR TEXTO (Champions League ou outros formatos)
             const num = parseInt(valor.replace(/\D/g, '')) || 0;
 
             if (valor.includes("qualif")) return 100 + num;
             if (valor.includes("grupo") || valor.includes("group")) return 200 + num;
-            
-            // CORREÇÃO: O playoff precisa ser checado ANTES da palavra "round" 
-            // Damos peso 350 para ele ficar entre a Rodada 8 (308) e as Oitavas (410)
             if (valor.includes("playoff") || valor.includes("play-off")) return 350;
             
             if (valor.includes("rodada") || valor.includes("round")) {
-                if (valor.includes("16") && !valor.includes("rodada")) return 410; // É Oitavas
-                return 300 + num; // É rodada comum
+                if (valor.includes("16") && !valor.includes("rodada")) return 410;
+                return 300 + num; 
             }
             
-            // Fases Finais (Mata-mata)
             if (valor.includes("16") || valor.includes("oitava")) return 410;
             if (valor.includes("quarter") || valor.includes("quarta")) return 420;
             if (valor.includes("semi")) return 430;
@@ -252,7 +303,10 @@
                 
                 if(json.status === "sucesso") {
                     todosOsJogosGlobais = json.dados; 
-                    gerarBotoesCampeonato(); // Chama a função que cria os botões
+                    gerarBotoesCampeonato(); 
+                    
+                    // CORREÇÃO 1: Chamando a função no plural (com 'S')
+                    inicializarMapas(); 
                 }
             } catch (erro) {
                 document.getElementById('botoes-campeonatos').innerHTML = `<p class="text-danger fw-bold">❌ Erro ao conectar com o Servidor Python.</p>`;
@@ -260,11 +314,92 @@
             }
         }
 
+        // --- FUNÇÃO DE MAPAS (CORRIGIDA) ---
+        function inicializarMapas() {
+            // 1. Cria o MAPA MUNDI (Que está visível) normalmente
+            const mapaMundi = new jsVectorMap({
+                selector: "#mapa-mundi",
+                map: "world",
+                regionStyle: {
+                    initial: { fill: "#e2e8f0" }, 
+                    hover: { fill: "#adb5bd" },
+                    selected: { fill: "#0d6efd" }, 
+                    selectedHover: { fill: "#0b5ed7" }
+                },
+                selectedRegions: paisesComDados, 
+                
+                onRegionClick: function(event, code) {
+                    const codigo = String(code).toUpperCase();
+                    const liga = ligasPorPais[codigo];
+                    const textoStatus = document.getElementById('resultado-mapa');
+
+                    if (liga) {
+                        textoStatus.innerHTML = `🌍 Abrindo: <strong>${liga}</strong>`;
+                        abrirCampeonato(liga);
+                    } else {
+                        textoStatus.innerHTML = `🌍 Ainda não temos dados para este país.`;
+                    }
+                }
+            });
+
+            // 2. A MÁGICA: Prepara o MAPA CONTINENTAL, mas só liga ele quando a aba for clicada!
+            let mapaContiCriado = false; // Controle para não criar duas vezes
+
+            document.getElementById('tab-continental').addEventListener('shown.bs.tab', function () {
+                // Se o mapa ainda não foi criado, cria agora que a aba está visível!
+                if (!mapaContiCriado) {
+                    const mapaConti = new jsVectorMap({
+                        selector: "#mapa-continental",
+                        map: "world", 
+                        regionStyle: { 
+                            initial: { fill: "#e2e8f0" },
+                            hover: { fill: "#adb5bd" },
+                            selected: { fill: "#0d6efd" }, // Azul para os países que têm dados!
+                            selectedHover: { fill: "#0b5ed7" }
+                        },
+                        // Avisa o mapa para acender os países da lista que criamos lá em cima
+                        selectedRegions: paisesContinentaisComDados, 
+
+                        onRegionClick: function(event, code) {
+                            const codigo = String(code).toUpperCase();
+                            let ligaEncontrada = null;
+
+                            // Procura dinamicamente em qual competição este país está
+                            for (const [nomeLiga, listaDePaises] of Object.entries(competicoesContinentais)) {
+                                if (listaDePaises.includes(codigo)) {
+                                    ligaEncontrada = nomeLiga;
+                                    break;
+                                }
+                            }
+
+                            const textoStatus = document.getElementById('resultado-mapa');
+
+                            if (ligaEncontrada) {
+                                const icone = ligaEncontrada.includes("Champions") ? "🇪🇺" : "🌎";
+                                textoStatus.innerHTML = `${icone} Carregando: <strong>${ligaEncontrada}</strong>`;
+                                abrirCampeonato(ligaEncontrada);
+                            } else {
+                                textoStatus.innerHTML = `🌍 Clique em uma região válida (Ex: Europa para Champions).`;
+                            }
+                        }
+                    });
+                    mapaContiCriado = true; // Avisa que já criou
+                }
+                
+                // Força o redimensionamento para garantir que cabe na tela
+                window.dispatchEvent(new Event('resize'));
+            });
+
+            // Arruma o tamanho do primeiro mapa se você voltar para a aba dele
+            document.getElementById('tab-nacional').addEventListener('shown.bs.tab', function () {
+                window.dispatchEvent(new Event('resize'));
+            });
+        }
+
         // --- FUNÇÃO 2: CRIA OS CARDS DINAMICAMENTE ---
         function gerarBotoesCampeonato() {
             const containerBotoes = document.getElementById('botoes-campeonatos');
             containerBotoes.innerHTML = ''; 
-            
             containerBotoes.className = 'grid-campeonatos';
 
             const campeonatosUnicos = [...new Set(todosOsJogosGlobais.map(jogo => jogo.Campeonato))].filter(Boolean);
@@ -276,14 +411,10 @@
 
             campeonatosUnicos.forEach(campeonato => {
                 const card = document.createElement('div');
-                
                 let classeCor = 'camp-default';
-                // HTML padrão caso seja um campeonato que ainda não temos logo
                 let iconeHTML = '<div class="logo-campeonato" style="font-size: 4rem;">🏆</div>'; 
-                
                 const nomeLower = campeonato.toLowerCase();
                 
-                // Substitui pelo HTML da imagem oficial transparente da internet
                 if(nomeLower.includes('premier')) {
                     classeCor = 'camp-premier';
                     iconeHTML = '<img src="Logo_PremierLeague.png" class="img-logo-camp" alt="Logo Premier League">';
@@ -296,7 +427,6 @@
                 }
                 card.className = `card-campeonato ${classeCor}`;
                 
-                // Monta o interior do card com a logo real
                 card.innerHTML = `
                     ${iconeHTML}
                     <div class="nome-campeonato">${campeonato}</div>
@@ -311,9 +441,11 @@
         function abrirCampeonato(nomeCampeonato) {
             document.getElementById('tela-campeonatos').style.display = 'none';
             document.getElementById('tela-rodadas').style.display = 'block';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
             document.getElementById('titulo-campeonato').innerText = nomeCampeonato;
 
-            // Filtra os jogos só para este campeonato
             jogosDoCampeonatoAtual = todosOsJogosGlobais.filter(jogo => jogo.Campeonato === nomeCampeonato);
             document.getElementById('contador').innerText = `${jogosDoCampeonatoAtual.length} jogos carregados`;
 
@@ -325,16 +457,17 @@
         function voltarParaCampeonatos() {
             document.getElementById('tela-rodadas').style.display = 'none';
             document.getElementById('tela-campeonatos').style.display = 'block';
-            document.getElementById('vitrine-jogos').innerHTML = ''; // Limpa a tela para economizar memória
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            document.getElementById('vitrine-jogos').innerHTML = ''; 
         }
 
-        // --- FUNÇÕES ANTIGAS ADAPTADAS ---
         function preencherFiltro() {
             const select = document.getElementById('filtroRodada');
             let rodadasUnicas = [...new Set(jogosDoCampeonatoAtual.map(jogo => jogo.Rodada_Fase || jogo.Rodada))].filter(Boolean);
             rodadasUnicas.sort((a, b) => calcularPesoFase(a) - calcularPesoFase(b));
 
-            // Inteligência: Descobre qual é o campeonato atual para mudar o texto
             const nomeCamp = document.getElementById('titulo-campeonato').innerText.toLowerCase();
             const textoPadrao = nomeCamp.includes('premier') ? 'Mostrar Todas as Rodadas' : 'Mostrar Todas as Rodadas/Fases';
 
@@ -343,13 +476,10 @@
             rodadasUnicas.forEach(rodada => {
                 const option = document.createElement('option');
                 option.value = rodada;
-                
-                // Deixa mais bonito: Se for só um número, escreve "Rodada X" no seletor
                 let textoExibicao = rodada;
                 if (/^\d+$/.test(String(rodada))) {
                     textoExibicao = `Rodada ${rodada}`;
                 }
-                
                 option.innerText = textoExibicao;
                 select.appendChild(option);
             });
