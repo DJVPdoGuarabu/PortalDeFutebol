@@ -79,6 +79,27 @@ try:
 except Exception as e:
     print(f"Aviso: Não encontrei os dados do Brasileirão. ({e})")
 
+try:
+    # Atenção: O nome 'Copa do Brasil' precisa ser idêntico ao do JavaScript
+    tabelas_prontas.append(
+        processar_campeonato('dimensao_copaBrasil_completo.xlsx', 'fatos_copaBrasil_completo.xlsx', 'Copa do Brasil'))
+except Exception as e:
+    print(f"Aviso: Não encontrei os dados da Copa do Brasil. ({e})")
+
+try:
+    # Atenção: O nome 'Série B' precisa ser idêntico ao do JavaScript
+    tabelas_prontas.append(
+        processar_campeonato('dimensao_BrasileiraoB_completo.xlsx', 'fatos_BrasileiraoB_completo.xlsx', 'Série B'))
+except Exception as e:
+    print(f"Aviso: Não encontrei os dados da Série B. ({e})")
+
+try:
+    # Atenção: O nome 'FA Cup' precisa ser idêntico ao do JavaScript
+    tabelas_prontas.append(
+        processar_campeonato('dimensao_FACup_completo.xlsx', 'fatos_FACup_completo.xlsx', 'FA Cup'))
+except Exception as e:
+    print(f"Aviso: Não encontrei os dados da FA Cup. ({e})")
+
 # Consolida a base em uma variável global
 if tabelas_prontas:
     df_completo = pd.concat(tabelas_prontas, ignore_index=True)
