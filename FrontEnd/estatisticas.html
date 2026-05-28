@@ -136,7 +136,7 @@
                 document.getElementById('nomeCasa').innerText = jogo.Time_Casa;
                 document.getElementById('nomeFora').innerText = jogo.Time_Fora;
                 // --- LÓGICA DO PLACAR COM PÊNALTIS ---
-                let placarTexto = `${jogo.Gols_Casa ?? '?'} : ${jogo.Gols_Fora ?? '?'}`;
+                let placarTexto = `${jogo.gols_casa ?? '?'} : ${jogo.gols_fora ?? '?'}`;
 
                 // Verifica se o jogo tem a estatística de pênaltis registrada
                 if (jogo.Penaltis_Casa != null && jogo.Penaltis_Fora != null) {
